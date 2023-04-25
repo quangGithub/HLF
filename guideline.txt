@@ -1,0 +1,226 @@
+*Note: ssh minikube by docker:tcuser
+1/ start minikube with 6 cpu and 8gb memory
+	minikube stop
+	minikube delete --all
+	minikube config set memory 8192
+	minikube config set cpus 6
+	minikube start --driver=hyperv
+	minikube ip
+
+
+2/ create persistent volume and persistent volume claim
+	cd 1.pv
+	kubectl apply -f pv.yaml
+	kubectl apply -f pvc.yaml
+	kubectl apply -f pod.yaml
+	
+3/ access to task-pv-pod to mount folder
+	kubectl exec -it task-pv-pod -- sh
+	cd /usr/share/nginx/html
+	touch 1.txt
+	exit
+    --> access to minikube and check the data must be synced
+	
+4/ copy all folder inside prerequsite foder to /v1 folder in minikube node
+ssh docker@192.168.70.187
+	ssh docker@minikube_ip password: tcuser
+	cd /v1
+	grant permission to docker user
+	sudo chown -R docker:docker ../v1
+	exit
+
+	scp -r prerequsite/* docker@minikube_ip:/v1 (password: tcuser)
+	
+	ssh docker@minikube_ip password: tcuser
+	cd /v1
+	ls -la 
+	sudo chmod +x ../v1/scripts -R
+	exit
+
+5/ deploy ca
+	ssh docker@minikube_ip password: tcuser
+	cd /v1
+	
+	mkdir organizations
+	cp -r fabric-ca organizations/
+	rm -rf fabric-ca
+	ls -la 
+	exit
+
+	cd 2.ca
+	kubectl apply -f .
+	
+6/ deploy certificates
+	cd ../3.certificates
+	kubectl apply -f .
+	
+7/ deploy artifacts
+	cd ../4.artifacts
+	kubectl apply -f .
+	
+8/ deploy orderer
+	cd ../5.orderer
+	kubectl apply -f .
+	
+9/ deploy peer - config map
+	cd ../6.configmap
+	kubectl apply -f .
+	
+	cd ../7.peers/
+	kubectl apply -f match/
+
+
+10/ create channel and join peer to channel
+	
+	from lens tool, filter pods by cli
+	access shell of cli-peer0-org1 (can access by manual of not setup lens tool)
+	
+	execute:
+	./scripts/createAppChannel.sh
+	ls channel-artifacts/ --> to validate new channel block has been created
+	peer channel join -b ./channel-artifacts/mychannel.block
+	
+	access shell of cli-peer0-org2 (can access by manual of not setup lens tool)
+	peer channel join -b ./channel-artifacts/mychannel.block
+	
+	access shell of cli-peer0-org3 (can access by manual of not setup lens tool)
+	peer channel join -b ./channel-artifacts/mychannel.block
+	
+	to verify peer join channel or not
+	peer channel list 
+	
+11/ update anchor peer
+	from lens tool, filter pods by cli
+	access shell of cli-peer0-org1 (can access by manual of not setup lens tool)
+	
+	./scripts/updateAnchorPeer.sh Org1MSP
+	
+	open shell for another org2, 3 and run the same command as below
+	./scripts/updateAnchorPeer.sh Org2MSP
+	./scripts/updateAnchorPeer.sh Org3MSP
+
+12/ packaging chaincode
+	ssh docker@minikube_ip password: tcuser
+	cd /v1/chaincode/basic/packaging
+	
+	start with org1
+	tar cfz code.tar.gz connection.json --> this command with create code.tar.gz file from connection.json file
+	tar cfz basic-org1.tgz code.tar.gz metadata.json --> this command with create basic-org1.tgz file from these 2 files
+	
+	rm -rf code.tar.gz
+	
+	start with org2
+	sudo vi connection.json
+	type I -> start to edit
+	change basic-org1:7052 --> basic-org2:7052
+	esc -> :wq -> to save
+	do the same command from line 106
+	do the same with org3
+	
+13/ install chaincode
+	from lens tool, filter pods by cli
+	access shell of cli-peer0-org1 (can access by manual of not setup lens tool)
+	
+	cd /opt/gopath/src/github.com/chaincode/basic/packaging
+	peer lifecycle chaincode install basic-org1.tgz
+	
+	do the same with other peers
+
+	copy and save the chaincode package identifier of 3 orgs:
+
+	basic:8707341ff29fb8856e65a30915bc2dc15b69209bb1a5f795e82ce4c1936911cd
+	basic:b9a51fa2a731e400fa7c011dcd3cff5341d5c1eb61d5942d1aa3c13891ce8f56
+	basic:53ee745489d046f4349a07a68d583e61d8929901ffd14fe891346e52cf3ec6ed
+	like: basic:1bbb296763656c3e8c13140aa09faf5a12bc1ea33d1f3400bf28cb8c4c9943bd
+	
+	go to docker hub and create new repository
+	then 
+	cd ../8.chaincode/basic
+	docker build -t leminhy89/basic-chaincode-hlf:1.0 .
+	
+	cd ../../9.cc-deploy/basic
+	update org1,2,3-chaincode-deployment.yaml file with correct chaincodeID and image name
+	
+	kubectl apply -f .
+	
+	
+14/ approve chaincode
+	from lens tool, filter pods by cli
+	access shell of cli-peer0-org1 (can access by manual of not setup lens tool)	
+	peer lifecycle chaincode approveformyorg --channelID mychannel --name basic --version 1.0 --init-required --package-id basic:8707341ff29fb8856e65a30915bc2dc15b69209bb1a5f795e82ce4c1936911cd --sequence 1 -o orderer:7050 --tls --cafile $ORDERER_CA
+	peer lifecycle chaincode approveformyorg --channelID mychannel --name basic --version 1.0 --init-required --package-id basic:b9a51fa2a731e400fa7c011dcd3cff5341d5c1eb61d5942d1aa3c13891ce8f56 --sequence 1 -o orderer:7050 --tls --cafile $ORDERER_CA
+	peer lifecycle chaincode approveformyorg --channelID mychannel --name basic --version 1.0 --init-required --package-id basic:53ee745489d046f4349a07a68d583e61d8929901ffd14fe891346e52cf3ec6ed --sequence 1 -o orderer:7050 --tls --cafile $ORDERER_CA
+	
+	please update package-id as same as your saved above
+	
+	run below command to check commit
+	peer lifecycle chaincode checkcommitreadiness --channelID mychannel --name basic --version 1.0 --init-required --sequence 1 -o orderer:7050 --tls --cafile $ORDERER_CA
+	
+	commit chaincode
+	peer lifecycle chaincode commit -o orderer:7050 --channelID mychannel --name basic --version 1.0 --sequence 1 --init-required --tls true --cafile $ORDERER_CA --peerAddresses peer0-org1:7051 --tlsRootCertFiles /organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt --peerAddresses peer0-org2:7051 --tlsRootCertFiles /organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt --peerAddresses peer0-org3:7051 --tlsRootCertFiles /organizations/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/tls/ca.crt
+
+	verrify
+	peer lifecycle chaincode querycommitted -C mychannel
+	
+15/ invoke transaction
+	from lens tool, filter pods by cli
+	access shell of cli-peer0-org1 (can access by manual of not setup lens tool)
+	
+	invoke transaction
+	peer chaincode invoke -o orderer:7050 --isInit --tls --cafile $ORDERER_CA -C mychannel -n basic --peerAddresses peer0-org1:7051 --tlsRootCertFiles /organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt --peerAddresses peer0-org2:7051 --tlsRootCertFiles /organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt --peerAddresses peer0-org3:7051 --tlsRootCertFiles /organizations/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/tls/ca.crt -c '{"Args":["InitLedger"]}' --waitForEvent
+		
+	
+	peer chaincode query -C mychannel -n basic -c '{"Args":["GetAllAssets"]}'
+	
+16/ Access couchdb
+	kubectl port-forward services/peer0-org1 5984:5984	
+	open browser to check: http://127.0.0.1:5984/_utils/
+	
+	try with another org
+	k port-forward services/peer0-org2 5985:5984	
+	open browser to check: http://127.0.0.1:5985/_utils/
+	
+	data must be same
+	
+	
+17/	Create connection profile
+	ssh docker@minikube_ip password: tcuser
+	cd v1
+	./scripts/ccp.sh
+	ls -la connection-profile
+	exit
+	
+18/ Override Fabric CA default configuration
+	cd 10/api/k8
+	kubectl apply -f configmap.yaml
+	
+19/ create nodejs application docker and update to 10.api/k8/api.yaml file
+20/ starting api server
+	cd /10.api/k8
+	kubectl apply -f api.yaml
+	
+	port service to test
+	kubectl port-forward services/api 4000
+	
+21/ cd 11.frontend	
+	kubectl apply -f frontend.yaml
+	
+22/ creating hyperledger explorer
+	ssh docker@minikube_ip password: tcuser
+	cd /v1/organizations/peerOrganizations/org1.example.com
+	sudo chown -R docker:docker ./users
+	cd /v1/organizations/peerOrganizations/org1.example.com/users/Admin\@org1.example.com/msp/keystore/
+	ls -> get the private key
+	cp private_key priv_sk
+	ex: cp e038ff63b5e7b71d0eb1013a7331095e668bb7a5855852cd64fc3bceec343f48_sk priv_sk
+	
+	exit
+
+23/ start hyperledger explorer
+	cd 12.explorer
+	kubectl apply -f configmap.yaml
+	kubectl apply -f explorerdb.yaml
+	kubectl apply -f explorer.yaml
+	
+	kubectl port-forward services/explorer 8080
+	open http://127.0.0.1:8080 to view the explorer	

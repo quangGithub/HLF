@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: explorer-config
+data:
+  network.json: |-
+    {
+    "name": "first-network",
+    "version": "1.0.0",
+    "client": {
+      "tlsEnable": true,
+      "adminCredential": {
+        "id": "exploreradmin",
+        "password": "exploreradminpw"
+      },
+      "enableAuthentication": false,
+      "organization": "MatchMSP",
+      "connection": {
+        "timeout": {
+          "peer": {
+            "endorser": "300"
+          },
+          "orderer": "300"
+        }
+      }
+    },
+    "channels": {
+      "mychannel": {
+        "peers": {
+          "peer0-match": {}
+        },
+        "connection": {
+          "timeout": {
+            "peer": {
+              "endorser": "6000",
+              "eventHub": "6000",
+              "eventReg": "6000"
+            }
+          }
+        }
+      }
+    },
+    "organizations": {
+      "MatchMSP": {
+        "mspid": "MatchMSP",
+        "adminPrivateKey": {
+          "path": "/organizations/peerOrganizations/match.agm.com/users/Admin@match.agm.com/msp/keystore/priv_sk"
+        },
+        "peers": [
+          "peer0-match"
+        ],
+        "signedCert": {
+          "path": "/organizations/peerOrganizations/match.agm.com/users/Admin@match.agm.com/msp/signcerts/cert.pem"
+        }
+      }
+    },
+    "peers": {
+      "peer0-match": {
+        "tlsCACerts": {
+          "path": "/organizations/peerOrganizations/match.agm.com/peers/peer0.match.agm.com/tls/ca.crt"
+        },
+        "url": "grpcs://peer0-match:7051"
+      }
+    }
+    }
+
+  config.json: |-
+    {
+    "network-configs": {
+      "first-network": {
+        "name": "first-network",
+        "profile": "./first-network.json"
+      }
+    },
+    "license": "Apache-2.0"
+    }

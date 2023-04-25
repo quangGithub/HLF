@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ca-match
+spec:
+  selector:
+    matchLabels:
+      app: ca-match
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ca-match
+    spec:
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mypvc
+      containers:
+        - name: ca-match
+          image: hyperledger/fabric-ca:1.4.9
+          imagePullPolicy: 'Always'
+          command:
+            [
+              'fabric-ca-server',
+              'start',
+              '-b',
+              'admin:adminpw',
+              '--port',
+              '7054',
+              '-d',
+            ]
+          resources:
+            requests:
+              memory: '300Mi'
+              cpu: '150m'
+            limits:
+              memory: '400Mi'
+              cpu: '250m'
+          env:
+            - name: FABRIC_CA_SERVER_CA_NAME
+              value: ca-match
+            - name: FABRIC_CA_SERVER_TLS_ENABLED
+              value: 'true'
+            - name: FABRIC_CA_SERVER_CSR_CN
+              value: 'ca-match'
+            - name: FABRIC_CA_SERVER_CSR_HOSTS
+              value: 'ca-match'
+          volumeMounts:
+            - name: data
+              mountPath: /etc/hyperledger/fabric-ca-server
+              subPath: organizations/fabric-ca/match

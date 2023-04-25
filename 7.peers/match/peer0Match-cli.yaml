@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cli-peer0-match
+spec:
+  selector:
+    matchLabels:
+      name: cli-peer0-match
+  template:
+    metadata:
+      labels:
+        name: cli-peer0-match
+    spec:
+      volumes:
+        - name: fabricfiles
+          persistentVolumeClaim:
+            claimName: mypvc
+
+      containers:
+        - name: cli-peer0-match
+          stdin: true
+          tty: true
+          resources:
+            limits:
+              memory: '200Mi'
+              cpu: '100m'
+            requests:
+              memory: '100Mi'
+              cpu: '90m'
+          image: hyperledger/fabric-tools:2.3
+          workingDir: /
+          env:
+            - name: ORDERER_CA
+              value: /organizations/ordererOrganizations/agm.com/orderers/orderer.agm.com/msp/tlscacerts/tlsca.agm.com-cert.pem
+
+            - name: CORE_PEER_ADDRESS
+              value: peer0-match:7051
+            - name: CORE_PEER_ID
+              value: cli.peer0.match.agm.com
+            - name: CORE_PEER_LOCALMSPID
+              value: MatchMSP
+            - name: CORE_PEER_MSPCONFIGPATH
+              value: /organizations/peerOrganizations/match.agm.com/users/Admin@match.agm.com/msp
+            - name: CORE_PEER_TLS_CERT_FILE
+              value: /organizations/peerOrganizations/match.agm.com/peers/peer0.match.agm.com/tls/server.crt
+            - name: CORE_PEER_TLS_ENABLED
+              value: 'true'
+            - name: CORE_PEER_TLS_KEY_FILE
+              value: /organizations/peerOrganizations/match.agm.com/peers/peer0.match.agm.com/tls/server.key
+            - name: CORE_PEER_TLS_ROOTCERT_FILE
+              value: /organizations/peerOrganizations/match.agm.com/peers/peer0.match.agm.com/tls/ca.crt
+            - name: GOPATH
+              value: /opt/gopath
+            - name: SYS_CHANNEL
+              value: system-channel
+            - name: CORE_CHAINCODE_BUILDER
+              value: hyperledger/fabric-ccenv:1.4.8
+            - name: FABRIC_LOGGING_SPEC
+              value: DEBUG
+          volumeMounts:
+            - mountPath: /organizations
+              name: fabricfiles
+              subPath: organizations
+            - mountPath: /configtx
+              name: fabricfiles
+              subPath: configtx
+            - mountPath: /channel-artifacts
+              name: fabricfiles
+              subPath: channel-artifacts
+            - mountPath: /scripts
+              name: fabricfiles
+              subPath: scripts
+            - mountPath: /opt/gopath/src/github.com/chaincode
+              name: fabricfiles
+              subPath: chaincode
