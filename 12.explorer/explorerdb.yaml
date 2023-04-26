@@ -23,7 +23,7 @@ spec:
               value: password
           resources:
             limits:
-              memory: '20Mi'
+              memory: '528Mi'
               cpu: '200m'
           ports:
             - containerPort: 5432

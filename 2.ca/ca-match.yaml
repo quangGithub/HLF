@@ -15,7 +15,7 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: mypvc
+            claimName: agmpvc
       containers:
         - name: ca-match
           image: hyperledger/fabric-ca:1.4.9

@@ -15,7 +15,7 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: mypvc
+            claimName: agmpvc
         - name: ca-client-config
           configMap:
             name: ca-client-config
@@ -29,10 +29,10 @@ spec:
           tty: true
           resources:
             limits:
-              memory: '20i'
+              memory: '450Mi'
               cpu: '400m'
             requests:
-              memory: '20Mi'
+              memory: '400Mi'
               cpu: '300m'
           image: quanglathe/agm-api:1.1
           imagePullPolicy: Always

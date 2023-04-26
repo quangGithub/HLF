@@ -15,7 +15,7 @@ spec:
       volumes:
         - name: fabricfiles
           persistentVolumeClaim:
-            claimName: mypvc
+            claimName: agmpvc
         - name: builders-config
           configMap:
             name: builders-config

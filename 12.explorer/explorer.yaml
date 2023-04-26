@@ -14,7 +14,7 @@ spec:
       volumes:
         - name: fabricfiles
           persistentVolumeClaim:
-            claimName: mypvc
+            claimName: agmpvc
         - name: explorer-config
           configMap:
             name: explorer-config
@@ -47,7 +47,7 @@ spec:
               value: 'false'
           resources:
             limits:
-              memory: '20Mi'
+              memory: '528Mi'
               cpu: '200m'
           ports:
             - containerPort: 8080

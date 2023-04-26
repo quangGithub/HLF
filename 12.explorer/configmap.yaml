@@ -25,7 +25,7 @@ data:
       }
     },
     "channels": {
-      "mychannel": {
+      "agmchannel": {
         "peers": {
           "peer0-match": {}
         },

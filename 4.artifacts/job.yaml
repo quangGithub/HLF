@@ -35,4 +35,4 @@ spec:
       volumes:
         - name: fabricfiles
           persistentVolumeClaim:
-            claimName: mypvc
+            claimName: agmpvc

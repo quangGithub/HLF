@@ -23,7 +23,7 @@ spec:
           name: chaincode-basic-match
           env:
             - name: CHAINCODE_ID
-              value: 'basic:8707341ff29fb8856e65a30915bc2dc15b69209bb1a5f795e82ce4c1936911cd'
+              value: 'basic:cd70a22f21dde853ea2c7fa4465cf25393fbf5ec295f09f80ebdcc94e7b466de'
             - name: CHAINCODE_SERVER_ADDRESS
               value: '0.0.0.0:7052'
           ports:
