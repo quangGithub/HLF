@@ -23,23 +23,23 @@
     --> access to minikube and check the data must be synced
 	
 4/ copy all folder inside prerequsite foder to /v1 folder in minikube node
-ssh docker@172.18.40.211
-	ssh docker@172.18.40.211 password: tcuser
+ssh docker@172.18.32.73
+	ssh docker@172.18.32.73 password: tcuser
 	cd /v1
 	grant permission to docker user
 	sudo chown -R docker:docker ../v1
 	exit
 
-	scp -r prerequsite/* docker@172.18.40.211:/v1 (password: tcuser)
+	scp -r prerequsite/* docker@172.18.32.73:/v1 (password: tcuser)
 	
-	ssh docker@172.18.40.211 password: tcuser
+	ssh docker@172.18.32.73 password: tcuser
 	cd /v1
 	ls -la 
 	sudo chmod +x ../v1/scripts -R
 	exit
 
 5/ deploy ca
-	ssh docker@172.18.40.211 password: tcuser
+	ssh docker@172.18.32.73 password: tcuser
 	cd /v1
 	
 	mkdir organizations
@@ -91,7 +91,7 @@ ssh docker@172.18.40.211
 	./scripts/updateAnchorPeer.sh MatchMSP
 
 12/ packaging chaincode
-	ssh docker@172.18.40.211 password: tcuser
+	ssh docker@172.18.32.73 password: tcuser
 	cd /v1/chaincode/basic/packaging
 	
 	start with match
@@ -99,7 +99,7 @@ ssh docker@172.18.40.211
 	tar cfz basic-match.tgz code.tar.gz metadata.json --> this command with create basic-org1.tgz file from these 2 files
 	
 	rm -rf code.tar.gz
-	
+	exit
 13/ install chaincode
 	from lens tool, filter pods by cli
 	access shell of cli-peer0-match (can access by manual of not setup lens tool)
@@ -108,14 +108,16 @@ ssh docker@172.18.40.211
 	peer lifecycle chaincode install basic-match.tgz
 
 	copy and save the chaincode package identifier of 3 orgs:
-	basic:cd70a22f21dde853ea2c7fa4465cf25393fbf5ec295f09f80ebdcc94e7b466de
+	basic:ec014eafe06242c72f43fdd2c13c069943dc9b99f381537bbc85b680d08ffa3e
 	like: basic:1bbb296763656c3e8c13140aa09faf5a12bc1ea33d1f3400bf28cb8c4c9943bd
 	
 	go to docker hub and create new repository
 	then 
 	cd ../8.chaincode/basic
-	docker build -t quanglathe/basic-chaincode-hlf:1.0 .
-	
+	docker build -t leminhy89/basic-chaincode-hlf:1.0 .
+    docker image
+    docker tag image_id leminhy89/basic-chaincode-hlf:1.0 
+    docker push -t leminhy89/basic-chaincode-hlf:1.0 .
 	cd ../../9.cc-deploy/basic
 	update org1,2,3-chaincode-deployment.yaml ---->file with correct chaincodeID and image name
 	
@@ -125,7 +127,7 @@ ssh docker@172.18.40.211
 14/ approve chaincode
 	from lens tool, filter pods by cli
 	access shell of cli-peer0-match (can access by manual of not setup lens tool)	
-	peer lifecycle chaincode approveformyorg --channelID agmchannel --name basic --version 1.0 --init-required --package-id basic:cd70a22f21dde853ea2c7fa4465cf25393fbf5ec295f09f80ebdcc94e7b466de --sequence 1 -o orderer:7050 --tls --cafile $ORDERER_CA
+	peer lifecycle chaincode approveformyorg --channelID agmchannel --name basic --version 1.0 --init-required --package-id basic:ec014eafe06242c72f43fdd2c13c069943dc9b99f381537bbc85b680d08ffa3e --sequence 1 -o orderer:7050 --tls --cafile $ORDERER_CA
 	
 	please update package-id as same as your saved above
 	
@@ -144,44 +146,39 @@ ssh docker@172.18.40.211
 	
 	invoke transaction
 	create profile
-	peer chaincode invoke -o orderer:7050 --isInit --tls --cafile $ORDERER_CA -C agmchannel -n basic --peerAddresses peer0-match:7051 --tlsRootCertFiles /organizations/peerOrganizations/match.agm.com/peers/peer0.match.agm.com/tls/ca.crt -c '{"function": "CreateProfile","Args":["profile_1","{\"username\":\"DungNT10\", \"cccdImageURL\":\"dung.com\", \"cccdno\":\"31101999\", \"cmndno\":\"3109\", \"fullname\":\"Nguyen Tan Dung\", \"gender\":\"Male\", \"birthdate\":\"31/10/1999\", \"address\":\"Da Nang\", \"hometown\":\"Thanh Hoa\", \"fingerprintCode\":\"code1\", \"cardCode\":\"code2\", \"email\":\"ntd31101999@gmail.com\"}"]}' --waitForEvent
-	peer chaincode invoke -o orderer:7050 --isInit --tls --cafile $ORDERER_CA -C agmchannel -n basic --peerAddresses peer0-match:7051 --tlsRootCertFiles /organizations/peerOrganizations/match.agm.com/peers/peer0.match.agm.com/tls/ca.crt -c '{"function": "CreateProfile","Args":["profile_2","{\"username\":\"ThinhLDH1\", \"cccdImageURL\":\"thinh.com\", \"cccdno\":\"28042001\", \"cmndno\":\"2841\", \"fullname\":\"Le Duy Hoanh Thinh\", \"gender\":\"Male\", \"birthdate\":\"28/04/2001\", \"address\":\"Da Nang\", \"hometown\":\"Nghe An\", \"fingerprintCode\":\"code1\", \"cardCode\":\"code2\", \"email\":\"hoangthinh1@gmail.com\"}"]}' --waitForEvent
-	peer chaincode invoke -o orderer:7050 --isInit --tls --cafile $ORDERER_CA -C agmchannel -n basic --peerAddresses peer0-match:7051 --tlsRootCertFiles /organizations/peerOrganizations/match.agm.com/peers/peer0.match.agm.com/tls/ca.crt -c '{"function": "CreateProfile","Args":["profile_3","{\"username\":\"QuangLV7\", \"cccdImageURL\":\"quang.com\", \"cccdno\":\"26022000\", \"cmndno\":\"2620\", \"fullname\":\"Le Van Quang\", \"gender\":\"Male\", \"birthdate\":\"26/02/2000\", \"address\":\"Da Nang\", \"hometown\":\"Quang Nam\", \"fingerprintCode\":\"code1\", \"cardCode\":\"code2\", \"email\":\"quanglathe@gmail.com\"}"]}' --waitForEvent
+	peer chaincode invoke -o orderer:7050 --tls $CORE_PEER_TLS_ENABLED --cafile $ORDERER_CA -C agmchannel -n basic --peerAddresses peer0-match:7051 --tlsRootCertFiles /organizations/peerOrganizations/match.agm.com/peers/peer0.match.agm.com/tls/ca.crt -c '{"function": "CreateProfile","Args":["profile_1","{\"username\":\"DungNT10\", \"idcardImageURL\":\"dung.com\", \"idcardNo1\":\"31101999\", \"idcardNo2\":\"3109\", \"fullname\":\"Nguyen Tan Dung\", \"gender\":\"Male\", \"birthdate\":\"31/10/1999\", \"address\":\"Da Nang\", \"hometown\":\"Thanh Hoa\", \"fingerprintCode\":\"code1\", \"cardCode\":\"code2\", \"email\":\"ntd31101999@gmail.com\"}"]}' --waitForEvent
+	peer chaincode invoke -o orderer:7050 --tls $CORE_PEER_TLS_ENABLED --cafile $ORDERER_CA -C agmchannel -n basic --peerAddresses peer0-match:7051 --tlsRootCertFiles /organizations/peerOrganizations/match.agm.com/peers/peer0.match.agm.com/tls/ca.crt -c '{"function": "CreateProfile","Args":["profile_2","{\"username\":\"ThinhLDH1\", \"idcardImageURL\":\"thinh.com\", \"idcardNo1\":\"28042001\", \"idcardNo2\":\"2841\", \"fullname\":\"Le Duy Hoanh Thinh\", \"gender\":\"Male\", \"birthdate\":\"28/04/2001\", \"address\":\"Da Nang\", \"hometown\":\"Nghe An\", \"fingerprintCode\":\"code1\", \"cardCode\":\"code2\", \"email\":\"hoangthinh1@gmail.com\"}"]}'
+	peer chaincode invoke -o orderer:7050 --tls $CORE_PEER_TLS_ENABLED --cafile $ORDERER_CA -C agmchannel -n basic --peerAddresses peer0-match:7051 --tlsRootCertFiles /organizations/peerOrganizations/match.agm.com/peers/peer0.match.agm.com/tls/ca.crt -c '{"function": "CreateProfile","Args":["profile_3","{\"username\":\"QuangLV7\", \"idcardImageURL\":\"quang.com\", \"idcardNo1\":\"26022000\", \"idcardNo2\":\"2620\", \"fullname\":\"Le Van Quang\", \"gender\":\"Male\", \"birthdate\":\"26/02/2000\", \"address\":\"Da Nang\", \"hometown\":\"Quang Nam\", \"fingerprintCode\":\"code1\", \"cardCode\":\"code2\", \"email\":\"quanglathe@gmail.com\"}"]}'
 
 	update profile
-	peer chaincode invoke -o orderer:7050 --isInit --tls --cafile $ORDERER_CA -C agmchannel -n basic --peerAddresses peer0-match:7051 --tlsRootCertFiles /organizations/peerOrganizations/match.agm.com/peers/peer0.match.agm.com/tls/ca.crt -c '{"function": "UpdateProfile","Args":["profile_1","{\"username\":\"DungNT10\", \"cccdImageURL\":\"dung.com\", \"cccdno\":\"31101999\", \"cmndno\":\"3109\", \"fullname\":\"Thu Tuong Chinh Phu\", \"gender\":\"Male\", \"birthdate\":\"31/10/1999\", \"address\":\"Da Nang\", \"hometown\":\"Thanh Hoa\", \"fingerprintCode\":\"code1\", \"cardCode\":\"code2\", \"email\":\"ntd31101999@gmail.com\"}"]}' --waitForEvent
+	peer chaincode invoke -o orderer:7050 --tls $CORE_PEER_TLS_ENABLED --cafile $ORDERER_CA -C agmchannel -n basic --peerAddresses peer0-match:7051 --tlsRootCertFiles /organizations/peerOrganizations/match.agm.com/peers/peer0.match.agm.com/tls/ca.crt -c '{"function": "UpdateMatch","Args":["match_1" , "profile_2", "Agree"]}' --waitForEvent
 	
 	create match
-	peer chaincode invoke -o orderer:7050 --isInit --tls --cafile $ORDERER_CA -C agmchannel -n basic --peerAddresses peer0-match:7051 --tlsRootCertFiles /organizations/peerOrganizations/match.agm.com/peers/peer0.match.agm.com/tls/ca.crt -c '{"function": "CreateMatch","Args":["match_1" ,"{\"matcherProfileId\":\"profile_3\",\"qrImageURL\":\"qr.com\",\"matchingLocation\":\"FSOFT\"}", "profile_2"]}' --waitForEvent
+	peer chaincode invoke -o orderer:7050 --tls $CORE_PEER_TLS_ENABLED --cafile $ORDERER_CA -C agmchannel -n basic --peerAddresses peer0-match:7051 --tlsRootCertFiles /organizations/peerOrganizations/match.agm.com/peers/peer0.match.agm.com/tls/ca.crt -c '{"function": "CreateMatch","Args":["match_1" ,"{\"ownerProfileId\":\"profile_1\", \"matcherProfileId\":\"profile_2\", \"matchingLocation\":\"FSOFT\"}"]}' --waitForEvent
 
 	accept match 
-	peer chaincode invoke -o orderer:7050 --isInit --tls --cafile $ORDERER_CA -C agmchannel -n basic --peerAddresses peer0-match:7051 --tlsRootCertFiles /organizations/peerOrganizations/match.agm.com/peers/peer0.match.agm.com/tls/ca.crt -c '{"function": "AcceptMatch","Args":["match_1" , "profile_3"]}' --waitForEvent
+	peer chaincode invoke -o orderer:7050 --tls $CORE_PEER_TLS_ENABLED --cafile $ORDERER_CA -C agmchannel -n basic --peerAddresses peer0-match:7051 --tlsRootCertFiles /organizations/peerOrganizations/match.agm.com/peers/peer0.match.agm.com/tls/ca.crt -c '{"function": "AcceptMatch","Args":["match_1" , "profile_3"]}' --waitForEvent
 
 	get History
+	peer chaincode query -C agmchannel -n basic -c '{"function": "GetHistoryForAsset","Args":["profile_1"]}'
 	peer chaincode query -C agmchannel -n basic -c '{"function": "GetHistoryForAsset","Args":["match_1"]}'
-	peer chaincode query -C agmchannel -n basic -c '{"function": "GetHistoryForAsset","Args":["profile_3"]}'
 
 	get profile by id
 	peer chaincode query -C agmchannel -n basic -c '{"function": "GetProfileById","Args":["profile_3"]}'
 
-	delete profile
-	peer chaincode invoke -o orderer:7050 --isInit --tls --cafile $ORDERER_CA -C agmchannel -n basic --peerAddresses peer0-match:7051 --tlsRootCertFiles /organizations/peerOrganizations/match.agm.com/peers/peer0.match.agm.com/tls/ca.crt -c '{"function": "DeleteProfileById","Args":["profile_3"]}' --waitForEvent
-
-	get all profile
-	peer chaincode query -C agmchannel -n basic -c '{"function": "GetAllProfiles","Args":[]}'
 
 	get all match by owner
-	peer chaincode query -C agmchannel -n basic -c '{"function": "GetMatchByOwner","Args":["profile_2"]}'
+	peer chaincode query -C agmchannel -n basic -c '{"function": "GetMatchByOwner","Args":["profile_1"]}'
 
 	get all match by matcher
 	peer chaincode query -C agmchannel -n basic -c '{"function": "GetMatchByMatcher","Args":["profile_2"]}'
-16/ Access couchdb
+16/ Access couchdbs
 	kubectl port-forward services/peer0-match 5984:5984	
 	open browser to check: http://127.0.0.1:5984/_utils/
 	
 	
 17/	Create connection profile
-	ssh docker@172.18.40.211 password: tcuser
+	ssh docker@172.18.32.73 password: tcuser
 	cd /v1
 	./scripts/ccp.sh
 	ls -la connection-profile
@@ -203,7 +200,7 @@ ssh docker@172.18.40.211
 	kubectl apply -f frontend.yaml
 	
 22/ creating hyperledger explorer
-	ssh docker@172.18.40.211 password: tcuser
+	ssh docker@172.18.32.73 password: tcuser
 	cd /v1/organizations/peerOrganizations/match.agm.com
 	sudo chown -R docker:docker ./users
 	cd /v1/organizations/peerOrganizations/match.agm.com/users/Admin\@match.agm.com/msp/keystore/

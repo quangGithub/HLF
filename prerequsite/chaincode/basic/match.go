@@ -22,11 +22,11 @@ var logger = flogging.MustGetLogger("match")
 
 type Profile struct {
 	DocType         string    `json:"docType"`
-	ID              string    `json:"id"`
+	ProfileID       string    `json:"profileId"`
 	Username        string    `json:"username"`
-	CCCDImageURL    string    `json:"cccdImageURL"`
-	CCCDNo          string    `json:"cccdNo"`
-	CMNDNo          string    `json:"cmndNo"`
+	IDCardImageURL  string    `json:"idcardImageURL"`
+	IDCardNo1       string    `json:"idcardNo1"`
+	IDCardNo2       string    `json:"idcardNo2"`
 	Fullname        string    `json:"fullname"`
 	Gender          string    `json:"gender"`
 	Birthdate       string    `json:"birthdate"`
@@ -41,12 +41,10 @@ type Profile struct {
 
 type Match struct {
 	DocType          string    `json:"docType"`
-	ID               string    `json:"id"`
+	MatchID          string    `json:"matchId"`
 	OwnerProfileId   string    `json:"ownerProfileId"`
 	MatcherProfileId string    `json:"matcherProfileId"`
-	QRImageURL       string    `json:"qrImageURL"`
 	MatchingLocation string    `json:"matchingLocation"`
-	MatchingTime     time.Time `json:"matchingTime"`
 	Status           string    `json:"status"`
 	CreatedAt        time.Time `json:"createdAt"`
 	UpdatedAt        time.Time `json:"updatedAt"`
@@ -67,7 +65,7 @@ func (s *SmartContract) CreateProfile(ctx contractapi.TransactionContextInterfac
 		return "", fmt.Errorf("Failed while unmarshling profile. %s", err.Error())
 	}
 	profile.DocType = "profile"
-	profile.ID = profileID
+	profile.ProfileID = profileID
 	profile.CreatedAt = time.Unix(time.Now().Unix(), 0)
 	profile.UpdatedAt = time.Unix(time.Now().Unix(), 0)
 	profileAsBytes, err := json.Marshal(profile)
@@ -75,43 +73,17 @@ func (s *SmartContract) CreateProfile(ctx contractapi.TransactionContextInterfac
 		return "", fmt.Errorf("Failed while marshling profile. %s", err.Error())
 	}
 	ctx.GetStub().SetEvent("CreateAsset", profileAsBytes)
-	return ctx.GetStub().GetTxID(), ctx.GetStub().PutState(profile.ID, profileAsBytes)
-}
-
-// Update Profile
-func (s *SmartContract) UpdateProfile(ctx contractapi.TransactionContextInterface, profileID string, profileData string) (string, error) {
-	if len(profileID) == 0 {
-		return "", fmt.Errorf("Please pass the correct profile id")
-	}
-	profileAsBytes, err := ctx.GetStub().GetState(profileID)
-	if err != nil {
-		return "", fmt.Errorf("Failed to get profile data. %s", err.Error())
-	}
-	if profileAsBytes == nil {
-		return "", fmt.Errorf("%s does not exist", profileID)
-	}
-	profile := new(Profile)
-	err = json.Unmarshal(profileAsBytes, profile)
-	if err != nil {
-		return "", fmt.Errorf("Failed to unmarshal profile. %s", err.Error())
-	}
-	profile.UpdatedAt = time.Unix(time.Now().Unix(), 0)
-	profileAsBytes, err = json.Marshal(profile)
-	if err != nil {
-		return "", fmt.Errorf("Failed while marshling profile. %s", err.Error())
-	}
-	return ctx.GetStub().GetTxID(),
-		ctx.GetStub().PutState(profile.ID, profileAsBytes)
+	return ctx.GetStub().GetTxID(), ctx.GetStub().PutState(profile.ProfileID, profileAsBytes)
 }
 
 // Create Match
-func (s *SmartContract) CreateMatch(ctx contractapi.TransactionContextInterface, matchID string, matchData string, ownerProfileId string) (string, error) {
+func (s *SmartContract) CreateMatch(ctx contractapi.TransactionContextInterface, matchID string, matchData string) (string, error) {
 	if len(matchData) == 0 {
 		return "", fmt.Errorf("Please pass the correct match data")
 	}
 	matchAsBytesCheck, _ := ctx.GetStub().GetState(matchID)
 	if matchAsBytesCheck != nil {
-		return "", fmt.Errorf("Mtach ID exist")
+		return "", fmt.Errorf("Match ID exist")
 	}
 	var match Match
 	err := json.Unmarshal([]byte(matchData), &match)
@@ -123,8 +95,7 @@ func (s *SmartContract) CreateMatch(ctx contractapi.TransactionContextInterface,
 		return "", fmt.Errorf("Fail to get matcher information.", err.Error())
 	}
 	match.DocType = "match"
-	match.ID = matchID
-	match.OwnerProfileId = ownerProfileId
+	match.MatchID = matchID
 	match.Status = "Created"
 	match.CreatedAt = time.Unix(time.Now().Unix(), 0)
 	matchAsBytes, err := json.Marshal(match)
@@ -132,11 +103,11 @@ func (s *SmartContract) CreateMatch(ctx contractapi.TransactionContextInterface,
 		return "", fmt.Errorf("Failed while marshling match. %s", err.Error())
 	}
 	ctx.GetStub().SetEvent("CreateAsset", matchAsBytes)
-	return ctx.GetStub().GetTxID(), ctx.GetStub().PutState(match.ID, matchAsBytes)
+	return ctx.GetStub().GetTxID(), ctx.GetStub().PutState(match.MatchID, matchAsBytes)
 }
 
-// Accept Match
-func (s *SmartContract) AcceptMatch(ctx contractapi.TransactionContextInterface, matchID string, userProfileId string) (string, error) {
+// Update Match
+func (s *SmartContract) UpdateMatch(ctx contractapi.TransactionContextInterface, matchID string, userProfileId string, status string) (string, error) {
 	if len(matchID) == 0 {
 		return "", fmt.Errorf("Please pass the correct match id")
 	}
@@ -153,18 +124,23 @@ func (s *SmartContract) AcceptMatch(ctx contractapi.TransactionContextInterface,
 		return "", fmt.Errorf("Failed to unmarshal match. %s", err.Error())
 	}
 	if userProfileId == match.MatcherProfileId {
-		match.Status = "Confirmed"
-		match.MatchingTime = time.Unix(time.Now().Unix(), 0)
-		match.UpdatedAt = time.Unix(time.Now().Unix(), 0)
+		if status == "Agree" {
+			match.Status = "Agree"
+			match.UpdatedAt = time.Unix(time.Now().Unix(), 0)
+		} else if status == "Cancel" {
+			match.Status = "Cancel"
+			match.UpdatedAt = time.Unix(time.Now().Unix(), 0)
+		} else {
+			return "", fmt.Errorf("Status invalid!")
+		}
 	} else {
-		return "", fmt.Errorf("Failed update match, input not appropriate. %s", err.Error())
+		return "", fmt.Errorf("User's not matcher!")
 	}
 	matchAsBytes, err = json.Marshal(match)
 	if err != nil {
 		return "", fmt.Errorf("Failed while marshling match. %s", err.Error())
 	}
-	return ctx.GetStub().GetTxID(),
-		ctx.GetStub().PutState(match.ID, matchAsBytes)
+	return ctx.GetStub().GetTxID(), ctx.GetStub().PutState(match.MatchID, matchAsBytes)
 }
 
 // Get history for Profile, Match
@@ -224,51 +200,23 @@ func (s *SmartContract) GetProfileById(ctx contractapi.TransactionContextInterfa
 	return profile, nil
 }
 
-// Delete Profile by id
-func (s *SmartContract) DeleteProfileById(ctx contractapi.TransactionContextInterface, profileID string) (string, error) {
-	if len(profileID) == 0 {
-		return "", fmt.Errorf("Please provide correct profile Id")
+// Get match by Id
+func (s *SmartContract) GetMatchById(ctx contractapi.TransactionContextInterface, matchID string) (*Match, error) {
+	if len(matchID) == 0 {
+		return nil, fmt.Errorf("Please provide correct profile Id")
 	}
-	return ctx.GetStub().GetTxID(), ctx.GetStub().DelState(profileID)
-}
-
-// Get all profiles
-func (s *SmartContract) GetAllProfiles(ctx contractapi.TransactionContextInterface) ([]*Profile, error) {
-	queryString := `{"selector":{"docType":"profile"}}`
-	return getQueryResultForQueryStringProfile(ctx, queryString)
-}
-func getQueryResultForQueryStringProfile(ctx contractapi.TransactionContextInterface, queryString string) ([]*Profile, error) {
-	resultsIterator, err := ctx.GetStub().GetQueryResult(queryString)
+	matchAsBytes, err := ctx.GetStub().GetState(matchID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to read from world state. %s", err.Error())
 	}
-	defer resultsIterator.Close()
-	return constructQueryResponseFromIteratorProfile(resultsIterator)
-}
-func constructQueryResponseFromIteratorProfile(resultsIterator shim.StateQueryIteratorInterface) ([]*Profile, error) {
-	var profileList []*Profile
-	for resultsIterator.HasNext() {
-		queryResult, err := resultsIterator.Next()
-		if err != nil {
-			return nil, err
-		}
-		var profile Profile
-		err = json.Unmarshal(queryResult.Value, &profile)
-		if err != nil {
-			return nil, err
-		}
-		profileList = append(profileList, &profile)
-	}
-	return profileList, nil
+	match := new(Match)
+	_ = json.Unmarshal(matchAsBytes, match)
+	return match, nil
 }
 
 // Get Match by owner and matcher
-func (s *SmartContract) GetMatchByOwner(ctx contractapi.TransactionContextInterface, ownerID string) ([]*Match, error) {
-	queryString := fmt.Sprintf(`{"selector":{"docType":"match", "ownerProfileId":"%s"}}`, ownerID)
-	return getQueryResultForQueryStringMatch(ctx, queryString)
-}
-func (s *SmartContract) GetMatchByMatcher(ctx contractapi.TransactionContextInterface, ownerID string) ([]*Match, error) {
-	queryString := fmt.Sprintf(`{"selector":{"docType":"match", "matcherProfileId":"%s"}}`, ownerID)
+func (s *SmartContract) GetMatchsByProfile(ctx contractapi.TransactionContextInterface, profileID string) ([]*Match, error) {
+	queryString := fmt.Sprintf(` { "selector":{ "docType":"match", "$or": [ { "ownerProfileId":"%s" }, { "matcherProfileId":"%s" } ] } }`, profileID, profileID)
 	return getQueryResultForQueryStringMatch(ctx, queryString)
 }
 func getQueryResultForQueryStringMatch(ctx contractapi.TransactionContextInterface, queryString string) ([]*Match, error) {
